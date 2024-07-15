@@ -1,0 +1,78 @@
+resource "aws_cloudwatch_metric_alarm" "visible_messages" {
+  alarm_name          = "SQSVisibleMessageAlarm-${aws_sqs_queue.example.name}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "ApproximateNumberOfMessagesVisible"
+  namespace           = "AWS/SQS"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "Alarm when visible messages exceed 80% of queue capacity"
+  alarm_actions       = [aws_sns_topic.example.arn]
+
+  dimensions = {
+    QueueName = aws_sqs_queue.example.name
+  }
+}
+
+# Create similar alarms for other metrics
+
+#Automatic Alarm Creation
+#Use AWS Config to track SQS queue creation events and trigger CloudWatch events: text
+
+
+resource "aws_config_delivery_channel" "delivery_channel" {
+  name           = "config-delivery-channel"
+  s3_bucket_name = "tech-demo-bucket"
+}
+
+resource "aws_config_configuration_recorder_status" "recorder_status" {
+  name       = aws_config_configuration_recorder.recorder.name
+ # role_arn   = aws_iam_role.config_role.arn
+  recording  = true
+  depends_on = [aws_config_delivery_channel.delivery_channel]
+}
+
+resource "aws_cloudwatch_event_rule" "sqs_queue_created" {
+  name        = "SQSQueueCreatedRule"
+  description = "Trigger when an SQS queue is created"
+  event_pattern = <<EOF
+{
+  "source": ["aws.sqs"],
+  "detail-type": ["AWS API Call via CloudTrail"],
+  "detail": {
+    "eventSource": ["sqs.amazonaws.com"],
+    "eventName": ["CreateQueue"]
+  }
+}
+EOF
+}
+
+resource "aws_cloudwatch_event_target" "sqs_queue_created_target" {
+  rule      = aws_cloudwatch_event_rule.sqs_queue_created.name
+  target_id = "CreateQueueAlarms"
+  arn       = aws_cloudwatch_event_bus.example.arn
+}
+
+#Configurable Thresholds
+#Allow developers to pass custom thresholds using resource tags: text
+resource "aws_sqs_queue" "example" {
+  name = "example-queue"
+
+  tags = {
+    VisibleMessageThreshold = "90"
+    OldestMessageThreshold  = "10"
+  }
+}
+
+#Alert Routing
+#Use SNS topics to route alarms to the appropriate teams:text
+resource "aws_sns_topic" "example" {
+  name = "example-sns-topic"
+}
+
+resource "aws_sns_topic_subscription" "example" {
+  topic_arn = aws_sns_topic.example.arn
+  protocol  = "email"
+  endpoint  = "team@example.com"
+}
