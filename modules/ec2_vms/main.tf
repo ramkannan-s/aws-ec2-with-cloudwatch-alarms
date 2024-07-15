@@ -56,17 +56,22 @@ resource "aws_eip" "TechDemoElasticIP" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "high_cpu_alarm" {
+  count               = length(aws_instance.ec2_vms)
   alarm_name          = "${var.alarm_name}-high-cpu"
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 3
+  evaluation_periods  = 1
   metric_name         = "CPUUtilization"
   namespace           = "AWS/EC2"
-  period              = 300
+  period              = 60
   statistic           = "Average"
-  threshold           = 80
+  threshold           = 40
 
-  alarm_description = "This alarm fires when CPU utilization exceeds 80%"
+  alarm_description = "This alarm fires when CPU utilization exceeds 40%"
   alarm_actions     = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    InstanceId = aws_instance.ec2_vms[count.index].id
+  }
 
   tags = {
     Service = var.alarm_name
@@ -74,19 +79,22 @@ resource "aws_cloudwatch_metric_alarm" "high_cpu_alarm" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "high_memory_alarm" {
+  count               = length(aws_instance.ec2_vms)
   alarm_name          = "${var.alarm_name}-high-memory"
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 3
+  evaluation_periods  = 1
   metric_name         = "MemoryUtilization"
   namespace           = "AWS/EC2"
-  period              = 300
+  period              = 60
   statistic           = "Average"
-  threshold           = 80
+  threshold           = 45
 
-
-  alarm_description = "This alarm fires when Memory utilization exceeds 80%"
+  alarm_description = "This alarm fires when Memory utilization exceeds 45%"
   alarm_actions     = [aws_sns_topic.alerts.arn]
 
+  dimensions = {
+    InstanceId = aws_instance.ec2_vms[count.index].id
+  }
   tags = {
     Service = var.alarm_name
   }
